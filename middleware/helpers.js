@@ -272,6 +272,11 @@ var convertValue = module.exports.convertValue = function (value, schema, type) 
     break;
 
   case 'string':
+    try {
+      value = JSON.parse(value);
+    } catch (err) {
+      value = original;
+    }
     if (['date', 'date-time'].indexOf(schema.format) > -1 && !_.isDate(value)) {
       value = new Date(value);
 
