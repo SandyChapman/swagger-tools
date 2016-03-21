@@ -186,11 +186,22 @@ var wrapEnd = function (req, res, next) {
 
   res.end = function (data, encoding) {
     var schema = operation;
+    var val;
     if(data)
     {
-      writtenData.push(data);
+      if(data instanceof Buffer) {
+        writtenData.push(data);
+        val = Buffer.concat(writtenData);
+      }
+      else if(data instanceof String) {
+        writtenData.push(new Buffer(data));
+        val = Buffer.concat(writtenData);
+      }
+      else {
+        val = data;
+      }
     } 
-    var val = Buffer.concat(writtenData);
+    
     var responseCode;
 
     // Replace 'res.end' and 'res.write' with the originals
