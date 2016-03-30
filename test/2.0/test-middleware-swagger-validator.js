@@ -208,50 +208,109 @@ describe('Swagger Validator Middleware v2.0', function () {
       });
     });
 
-    it('should return an error for invalid parameter values based on type/format', function () {
-      var argName = 'arg0';
-      var badValue = 'fake';
-      var testScenarios = [
-        {in: 'query', name: argName, type: 'boolean'},
-        {in: 'query', name: argName, type: 'integer'},
-        {in: 'query', name: argName, type: 'number'},
-        {in: 'query', name: argName, type: 'string', format: 'date'},
-        {in: 'query', name: argName, type: 'string', format: 'date-time'},
-        {in: 'query', name: argName, type: 'array', items: {type: 'integer'}}
-      ];
+    it('should return an error for invalid parameter values based on type/format', function (done) {
+        var argName = 'arg0';
+        var badValue = 'fake';
+        var testScenarios = [
+          {in: 'query', name: argName, type: 'boolean'},
+          {in: 'query', name: argName, type: 'integer'},
+          {in: 'query', name: argName, type: 'number'},
+          {in: 'query', name: argName, type: 'string', format: 'date'},
+          {in: 'query', name: argName, type: 'string', format: 'date-time'},
+          {in: 'query', name: argName, type: 'array', items: {type: 'integer'}}
+        ];
 
-      async.map(testScenarios, function (scenario, callback) {
-        var cPetStore = _.cloneDeep(petStoreJson);
-        var cScenario = _.cloneDeep(scenario);
-        var content = {arg0: scenario.type === 'array' ? [1, 'fake'] : badValue};
-        var expectedMessage;
+        async.map(testScenarios, function (scenario, callback) {
+          var cPetStore = _.cloneDeep(petStoreJson);
+          var cScenario = _.cloneDeep(scenario);
+          var content = {arg0: scenario.type === 'array' ? [1, 'fake'] : badValue};
+          var expectedMessage;
 
-        cPetStore.paths['/pets/{id}'].get.parameters = [cScenario];
+          cPetStore.paths['/pets/{id}'].get.parameters = [cScenario];
+          
+          if (scenario.type === 'array') {
+            expectedMessage = 'Parameter (' + argName + ') at index 1 is not a valid integer: fake';
+          } else {
+            expectedMessage = 'Parameter (' + scenario.name + ') is not a valid ' +
+                                (_.isUndefined(scenario.format) ?
+                                   '' :
+                                   scenario.format + ' ') + scenario.type + ': ' + badValue;
+          }
 
-        if (scenario.type === 'array') {
-          expectedMessage = 'Parameter (' + argName + ') at index 1 is not a valid integer: fake';
-        } else {
-          expectedMessage = 'Parameter (' + scenario.name + ') is not a valid ' +
-                              (_.isUndefined(scenario.format) ?
-                                 '' :
-                                 scenario.format + ' ') + scenario.type + ': ' + badValue;
-        }
+          helpers.createServer([cPetStore], {}, function (app) {
+            request(app)
+              .get('/api/pets/1')
+              .query(content)
+              .expect(400)
+              .end(function (err, res) {
+                if (err) {
+                  return callback(err);
+                }
+                helpers.expectContent('Request validation failed: ' + expectedMessage)(undefined, res);
+                callback();
+              });
+          });
+        }, function (err) {
+          if (err) {
+            return done(err);
+          }
 
-        helpers.createServer([cPetStore], {}, function (app) {
-          request(app)
-            .get('/api/pets/1')
-            .query(content)
-            .expect(400)
-            .end(function (err, res) {
-              if (res) {
-                res.expectedMessage = 'Request validation failed: ' + expectedMessage;
-              }
-
-              callback(err, res);
-            });
+          done();
         });
       });
-    });
+      
+      it('should return an error for invalid parameter values based on type/format', function (done) {
+          var argName = 'arg0';
+          var testScenarios = [
+            // {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '2016-02-04T20:16:26+00:00'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '0'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '"2016-02-04T20:16:26+00:00"'},
+          ];
+
+          async.map(testScenarios, function (scenario, callback) {
+            var cPetStore = _.cloneDeep(petStoreJson);
+            var cScenario = _.cloneDeep(scenario.json);
+            var badValue = _.cloneDeep(scenario.value);
+            var content = {arg0: badValue};
+            var expectedMessage = 'Parameter (' + cScenario.name + ') is not a valid ' +
+                                (_.isUndefined(cScenario.format) ?
+                                   '' :
+                                   cScenario.format + ' ') + cScenario.type + ': ' + badValue;
+
+            cPetStore.paths['/pets/{id}'].get.parameters = [cScenario];
+
+            helpers.createServer([cPetStore], 
+              {
+                swaggerRouterOptions: {
+                  controllers: {
+                    getPetById: function (req, res) {
+                      res.end('OK');
+                    }
+                  }
+                }
+              }, 
+              function (app) {
+                request(app)
+                  .get('/api/pets/1')
+                  .query(content)
+                  .expect(400)
+                  .end(function (err, res) {
+                    if (err) {
+                      return callback(err + '\n\tInvalid value that should have been rejected: ' + badValue);
+                    }
+                    helpers.expectContent('Request validation failed: ' + expectedMessage)(undefined, res);
+                    callback();
+                  });
+                }
+              );
+          }, function (err) {
+            if (err) {
+              return done(err);
+            }
+
+            done();
+          });
+        });
 
     it('should not return an error for valid parameter values based on type/format', function (done) {
       var argName = 'arg0';
