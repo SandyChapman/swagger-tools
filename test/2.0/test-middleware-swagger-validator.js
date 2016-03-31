@@ -262,9 +262,17 @@ describe('Swagger Validator Middleware v2.0', function () {
       it('should return an error for invalid parameter values based on type/format', function (done) {
           var argName = 'arg0';
           var testScenarios = [
-            // {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '2016-02-04T20:16:26+00:00'},
             {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '0'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '12345'},
             {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '"2016-02-04T20:16:26+00:00"'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '2016-99-04T20:16:26+00:00'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '2016-02-99T20:16:26+00:00'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '2016-02-04T99:16:26+00:00'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '2016-02-04T20:99:26+00:00'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '2016-02-04T20:16:99+00:00'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '2016-02-04T20:16:26+99:00'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '2016-02-04T20:16:26-99:00'},
+            {json: {in: 'query', name: argName, type: 'string', format: 'date-time'}, value: '2016-02-04T20:16:26-00:23'},
           ];
 
           async.map(testScenarios, function (scenario, callback) {
